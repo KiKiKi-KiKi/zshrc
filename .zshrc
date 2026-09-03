@@ -25,10 +25,6 @@ if type brew &>/dev/null; then
   if [ -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
     source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
   fi
-  # git prompt
-  if [ -e $(brew --prefix)/opt/zsh-git-prompt/zshrc.sh ]; then
-    source $(brew --prefix)/opt/zsh-git-prompt/zshrc.sh
-  fi
 fi
 
 # 補完で小文字でも大文字にマッチさせる
@@ -47,18 +43,36 @@ setopt correct
 # ?, &, * でエラーにならないようにする
 setopt nonomatch
 
-# python で python3 を実行できるようにうする
-## git_super_status に python コマンドが必要
-if type brew &>/dev/null && type $(brew --prefix)/bin/python3 &>/dev/null; then
-  alias python="$(brew --prefix)/bin/python3"
-  alias pip="$(brew --prefix)/bin/pip3"
-else
-  alias python="/usr/bin/python3"
-  alias pip="/usr/bin/pip3"
-fi
-
 # PROMPT
 # https://zenn.dev/sprout2000/articles/bd1fac2f3f83bc
+
+# Git ブランチ表示（zsh 標準の vcs_info を使用、Python 不要）
+setopt PROMPT_SUBST
+autoload -Uz vcs_info
+zstyle ':vcs_info:git:*' actionformats ' %F{033}[%b|%a]%f'
+zstyle ':vcs_info:git:*' formats ' %F{033}[%b]%f'
+
+# git 変更内容を表示する場合
+# ※ プロンプト表示のたびにリポジトリを走査するので、巨大リポジトリでは遅くなることがあります。
+# zstyle ':vcs_info:git:*' check-for-changes true
+# zstyle ':vcs_info:git:*' stagedstr '+'      # index に変更あり → %c に入る
+# zstyle ':vcs_info:git:*' unstagedstr '*'    # 作業ツリーに変更あり → %u に入る
+# zstyle ':vcs_info:git:*' formats ' %F{033}[%b%c%u]%f'
+
+## %m = misc （フックで ahead/behind を出力）
+# zstyle ':vcs_info:git:*' formats ' %F{033}[%b%c%u]%f%m'
+# zstyle ':vcs_info:git:*' actionformats ' %F{033}[%b|%a%c%u]%f%m'
+# zstyle ':vcs_info:git*+set-message:*' hooks git-aheadbehind
+
+# ahead/behind を出力 する hooks
+# +vi-git-aheadbehind() {
+#   local ahead behind
+#   # upstream 未設定・リモートなしのときは何も出さない
+#   ahead=$(command git rev-list --count @{upstream}..HEAD 2>/dev/null) || return
+#   behind=$(command git rev-list --count HEAD..@{upstream} 2>/dev/null) || return
+#   (( ahead ))  && hook_com[misc]+="%F{cyan}↑${ahead}%f"
+#   (( behind )) && hook_com[misc]+="%F{magenta}↓${behind}%f"
+# }
 
 add_newline() {
   if [[ -z $PS1_NEWLINE_LOGIN ]]; then
@@ -69,11 +83,8 @@ add_newline() {
 }
 
 git_prompt() {
-  if [ "$(git rev-parse --is-inside-work-tree 2> /dev/null)" = true ]; then
-    PROMPT="%F{034}%n%f:%F{037}%~%f $(git_super_status) "$'\n'"%# "
-  else
-    PROMPT="%F{034}%n%f:%F{037}%~%f "$'\n'"%# "
-  fi
+  vcs_info
+  PROMPT="%F{034}%n%f:%F{037}%~%f\${vcs_info_msg_0_} "$'\n'"%# "
 }
 
 precmd() {
@@ -98,3 +109,4 @@ alias ll='ls -al'
 
 # cd ~/Documents/
 alias d='cd ~/Documents/'
+
